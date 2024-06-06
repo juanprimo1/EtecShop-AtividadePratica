@@ -21,28 +21,74 @@ public class HomeController : Controller
 
     public IActionResult Index()
     {
-        HomeVM homeVM = new(){
+        HomeVM homeVM = new()
+        {
             Categorias = _context.Categorias.ToList(),
             Produtos = _context.Produtos.Include(p => p.Categoria).ToList()
         };
         return View(homeVM);
     }
 
-    public IActionResult Produto(int id){
+    public IActionResult Produto(int id)
+    {
         Produto produto = _context.Produtos
         .Include(p => p.Categoria)
         .FirstOrDefault(p => p.Id == id);
-        return View(produto);
+        var avaliacoes = _context.Avaliacoes
+        .Where(a => a.ProdutoId == produto.Id).ToList();
+        //return View(produto);
+
+        ProdutoVM produtoVM = new()
+    {
+        Produto = produto,
+        Avaliacoes = avaliacoes
+    };
+        return View(produtoVM);
     }
 
-    public IActionResult Privacy()
+[HttpPost]
+[ValidateAntiForgeryToken]
+public IActionResult Produto(ProdutoVM produtoAvaliado)
+{
+    if (produtoAvaliado.Nome == string.Empty ||
+        produtoAvaliado.Texto == string.Empty ||
+        produtoAvaliado.Titulo == string.Empty)
     {
-        return View();
+        Produto produto = _context.Produtos
+            .Include(p => p.Categoria)
+            .FirstOrDefault(p => p.Id == produtoAvaliado.Produto.Id);
+        var avaliacoes = _context.Avaliacoes
+            .Where(a => a.ProdutoId == produto.Id).ToList();
+        ProdutoVM produtoVM = new()
+        {
+            Produto = produto,
+            Avaliacoes = avaliacoes
+        };
+        ModelState.AddModelError(string.Empty, "Informe todos os campos");
+        return View(produtoVM);
     }
 
-    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public IActionResult Error()
+    Avaliacao avaliacao = new()
     {
-        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-    }
+        Nome = produtoAvaliado.Nome,
+        Texto = produtoAvaliado.Texto,
+        Titulo = produtoAvaliado.Titulo,
+        ProdutoId = produtoAvaliado.Produto.Id
+    };
+    _context.Add(avaliacao);
+    _context.SaveChanges();
+    TempData["Avaliacao"] = "Obrigado por seu comentário";
+    return RedirectToAction(nameof(Produto));
+}
+
+public IActionResult Privacy()
+{
+    return View();
+}
+
+[ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+public IActionResult Error()
+{
+    return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+}
 }
